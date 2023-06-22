@@ -5,6 +5,12 @@ my $outf = open "glfw_gl.raku", :w;
 my Str $constant-enum = "enum GLFW (";
 my Bool $enum-start = True;
 
+class ParsedFunc {
+    has Str $.return_type;
+    has Str $.function_name;
+    has Array $.argument_types;
+}
+
 sub remove_c_comments(Str $str) returns Str {
     my $comment_pattern = rx/ '/*' .*? '*/' /;
     my Str $st = $str.subst($comment_pattern, '', :g);
@@ -19,9 +25,31 @@ sub parse-constant(Str $constant-src) {
     return grep { $_ ne '' }, $constant-src.words;;
 }
 
+sub parse-func(Str $func-src) returns ParsedFunc {
+    my $declaration = "$func-src";
+    $declaration ~~ s/^ \s* GLFWAPI \s* //;
+    $declaration ~~ s/^ \s* const \s* //;
+
+    my ($return_type, $rest) = $declaration.split(/\s+/, 2);
+    my ($function_name, $arguments) = $rest.split(/\(/, 2);
+
+    if $arguments {
+        $arguments ~~ s/\)//;
+        my @argument_types = $arguments.split(',')
+            .map({ .trim.split(/\s+/).grep({ $_ ne 'const' }).join(' ') });
+        
+        @argument_types = @argument_types.map({ .words[0] });
+        return ParsedFunc.new(return_type => $return_type, function_name => $function_name, argument_types => @argument_types);
+    }
+    else {
+        say "Invalid function declaration";
+        return Nil;
+    }
+}
+
 for $content.lines -> $line {
 
-    if ($line.starts-with("#define ")) {
+    if $line.starts-with("#define ") {
         my @res = parse-constant($line);
         my Str $name = remove-appendix(@res[1]);
         
@@ -35,6 +63,11 @@ for $content.lines -> $line {
             $enum-start = False;
         } else {
             $constant-enum = "$constant-enum,\n    $name => $val";
+        }
+    } elsif $line.starts-with("GLFWAPI") {
+        my ParsedFunc $func = parse-func($line);
+        if $func.defined {
+            
         }
     }
 }
