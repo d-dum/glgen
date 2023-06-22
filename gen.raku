@@ -1,8 +1,8 @@
 my $content = slurp "glfw3.h";
 
-my $outf = open "glfw_gl.raku", :w;
+my $outf = open "GL.rakumod", :w;
 
-my Str $header = "use NativeCall;\n\n";
+my Str $header = "unit module GL;\nuse NativeCall;\n\n";
 
 my Str $constant-enum = "enum GLFW (";
 my Str $binding-str = "\n\n";
@@ -110,7 +110,7 @@ for $content.lines -> $line {
             }
         }
         
-        my $func-str = "sub $name";
+        my $func-str = "our sub $name";
         if $func.defined {
             my Str $types-str = "";
             for $func.argument_types -> $arg {
