@@ -102,11 +102,11 @@ for $content.lines -> $line {
         my Str $name = $func.function_name;
         say $func;
         my $return_type-k = get-argument-str($func.return_type).words[0];
-        my Str $return_type = "is native\(\"glfw_gl_all\"\) \{ * \}";
+        my Str $return_type = "is native\(\"glfw_glad_all\"\) \{ * \}";
         if defined($return_type-k) {
             $return_type = "$return_type-k";
             if not $return_type.trim.chars == 0 {
-                $return_type = "returns $return_type is native\(\"glfw_gl_all\"\) \{ * \}";
+                $return_type = "returns $return_type is native\(\"glfw_glad_all\"\) \{ * \}";
             }
         }
         
