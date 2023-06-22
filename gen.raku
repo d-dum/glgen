@@ -4,7 +4,7 @@ my $outf = open "GL.rakumod", :w;
 
 my Str $header = "unit module GL;\nuse NativeCall;\n\n";
 
-my Str $constant-enum = "enum GLFW (";
+my Str $constant-enum = "our enum GLFW (";
 my Str $binding-str = "\n\n";
 my Bool $enum-start = True;
 
