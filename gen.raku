@@ -2,8 +2,24 @@ my $content = slurp "glfw3.h";
 
 my $outf = open "glfw_gl.raku", :w;
 
+my Str $header = "use NativeCall;\n\n";
+
 my Str $constant-enum = "enum GLFW (";
+my Str $binding-str = "\n\n";
 my Bool $enum-start = True;
+
+my %types = 
+    "int" => "int32", 
+    "char*" => "Str", 
+    "int*" => "int32 is rw", 
+    "char**" => "CArray[Str]", 
+    "float" => "num32",
+    "uint32_t*" => "uint32",
+    "void*" => "Pointer is rw",
+    "double" => "num64",
+    "PFN_vkGetInstanceProcAddr" => "", # don't know how to handle it yet,
+    "GLFWerrorfun" => "Pointer is rw"
+;
 
 class ParsedFunc {
     has Str $.return_type;
@@ -29,6 +45,7 @@ sub parse-func(Str $func-src) returns ParsedFunc {
     my $declaration = "$func-src";
     $declaration ~~ s/^ \s* GLFWAPI \s* //;
     $declaration ~~ s/^ \s* const \s* //;
+    $declaration ~~ s/^ \s* unsigned \s* //;
 
     my ($return_type, $rest) = $declaration.split(/\s+/, 2);
     my ($function_name, $arguments) = $rest.split(/\(/, 2);
@@ -45,6 +62,22 @@ sub parse-func(Str $func-src) returns ParsedFunc {
         say "Invalid function declaration";
         return Nil;
     }
+}
+
+sub get-argument-str(Str $arg) returns Str {
+    if %types{$arg}:exists {
+        return %types{$arg};
+    }
+
+    if $arg.ends-with("*") {
+        return "Pointer is rw";
+    }
+
+    if $arg.contains("void") {
+        return "";
+    }
+
+    return "";
 }
 
 for $content.lines -> $line {
@@ -66,13 +99,40 @@ for $content.lines -> $line {
         }
     } elsif $line.starts-with("GLFWAPI") {
         my ParsedFunc $func = parse-func($line);
+        my Str $name = $func.function_name;
+        say $func;
+        my $return_type-k = get-argument-str($func.return_type).words[0];
+        my Str $return_type = "is native\(\"glfw_gl_all\"\) \{ * \}";
+        if defined($return_type-k) {
+            $return_type = "$return_type-k";
+            if not $return_type.trim.chars == 0 {
+                $return_type = "returns $return_type is native\(\"glfw_gl_all\"\) \{ * \}";
+            }
+        }
+        
+        my $func-str = "sub $name";
         if $func.defined {
-            
+            my Str $types-str = "";
+            for $func.argument_types -> $arg {
+                next if $arg.contains("void;");
+
+                my Str $type-str = get-argument-str($arg);
+                if $types-str.trim.chars == 0 {
+                    $types-str = "$type-str";
+                } else {
+                    $types-str = "$types-str, $type-str";
+                }
+                
+            }
+            $func-str = "$func-str\($types-str\) $return_type";
+            $binding-str = "$binding-str\n$func-str";
         }
     }
 }
 
 $constant-enum = "$constant-enum \n);";
 
+$outf.say($header);
 $outf.say($constant-enum);
+$outf.say($binding-str);
 $outf.close;
